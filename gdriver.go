@@ -158,6 +158,16 @@ func IsRegistered(groupName, driverName string) (found bool) {
 	return found
 }
 
+// NewDefault is a wrapper to a default registered driver for a group.
+func NewDefault( groupName string ) (interface{}, error ){
+	return New( groupName, DEFAULT_DRIVER )
+}
+
+// MustNewDefault is a wrapper to a default, required register driver
+func MustNewDefault( groupName string ) interface{} {
+	return MustNew( groupName, DEFAULT_DRIVER )
+}
+
 // New will call the driver's New() function and return a new instance of the driver class
 func New(groupName, driverName string) (interface{}, error) {
 	if !isInitialised {
@@ -177,9 +187,10 @@ func New(groupName, driverName string) (interface{}, error) {
 	return nil, errors.New("Invalid driver: " + groupName + ":" + driverName)
 }
 
+
 // NewMust is a simple wrapper around the New function that will cause an error if there
 // is no driver found for a name.
-func NewMust(groupName, driverName string) interface{} {
+func MustNew(groupName, driverName string) interface{} {
 	d, err := New(groupName, driverName)
 	if err != nil {
 		panic(err.Error())
