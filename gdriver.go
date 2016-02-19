@@ -74,6 +74,8 @@ const (
 
 const DEFAULT_DRIVER = `_*_`
 
+const NAME_SEP = "."
+
 // New is the function that is called to allocate a new driver. The return will
 // need to be cast to the type desired:
 //		drive, err := gdriver.New( groupName , driverName )
@@ -102,6 +104,7 @@ type driverMember struct {
 	Name    string
 	Driver  DriverInterface
 	Default bool
+	Singleton	interface{}
 }
 
 // The main storage, global, for the driver data. The mutex must be locked/unlocked
@@ -158,6 +161,18 @@ func IsRegistered(groupName, driverName string) (found bool) {
 	return found
 }
 
+// GetDriver will return the low-level, registered driver for a named group/interface
+// If you want the default name you must look it up with the GetDefaultName function.
+// This allows you to call New and ID from anywhere you want.
+func GetDriver( groupName, driverName string )( DriverInterface, error ) {
+	driverMu.Lock()
+	defer driverMu.Unlock()
+	if driverInstance, ok := driverLibrary[libraryKey(groupName, driverName)]; ok {
+		return driverInstance.Driver, nil
+	}
+	return nil, errors.New("Invalid driver: " + groupName + ":" + driverName)
+}
+
 // NewDefault is a wrapper to a default registered driver for a group.
 func NewDefault( groupName string ) (interface{}, error ){
 	return New( groupName, DEFAULT_DRIVER )
@@ -181,11 +196,9 @@ func New(groupName, driverName string) (interface{}, error) {
 	driverMu.Lock()
 	defer driverMu.Unlock()
 
-	if driverInstance, ok := driverLibrary[libraryKey(groupName, driverName)]; ok {
-		return driverInstance.Driver.New(), nil
-	}
-	return nil, errors.New("Invalid driver: " + groupName + ":" + driverName)
+	return findDriver( groupName, driverName )
 }
+
 
 
 // NewMust is a simple wrapper around the New function that will cause an error if there
@@ -202,29 +215,10 @@ func MustNew(groupName, driverName string) interface{} {
 // when the driverName indicates default
 func newDefault(groupName string) (interface{}, error) {
 
-	var defaultDriver *driverMember
-
 	driverMu.Lock()
 	defer driverMu.Unlock()
 
-	lname := strings.ToLower(groupName) + "."
-	for key, driverInstance := range driverLibrary {
-		if strings.HasPrefix(key, lname) {
-			if driverInstance.Default {
-				return driverInstance.Driver.New(), nil
-			}
-			if defaultDriver == nil {
-				defaultDriver = driverInstance
-			} else {
-				defaultDriver = nil
-			}
-		}
-	}
-
-	if defaultDriver == nil {
-		return nil, errors.New(fmt.Sprintf("No default driver set for %d", groupName))
-	}
-	return defaultDriver, nil
+	return findDefaultDriver( groupName )
 }
 
 // Default will make sure that only ONE driver is made a default
@@ -243,6 +237,21 @@ func Default(groupName, driverName string) (found bool) {
 		driverLibrary[name].Default = true
 	}
 	return found
+}
+
+func GetDefaultName( groupName string ) ( string, error ) {
+	driverMu.Lock()
+	defer driverMu.Unlock()
+
+	lname := strings.ToLower(groupName) + NAME_SEP
+	for key, driverInstance := range driverLibrary {
+		if strings.HasPrefix(key, lname) {
+			if driverInstance.Default  {
+				return driverInstance.Name, nil
+			}
+		}
+	}
+	return "", errors.New(fmt.Sprintf("No default driver set for %d", groupName))
 }
 
 // Help will return a help string at the level requested
@@ -286,5 +295,25 @@ func ListGroup() map[string]int {
 // are forced to lower case in order to find them. This can be changed to allow
 // mixed case names as required.
 func libraryKey(groupName, driverName string) string {
-	return strings.ToLower(groupName) + "." + strings.ToLower(driverName)
+	return strings.ToLower(groupName) + NAME_SEP + strings.ToLower(driverName)
 }
+
+func findDriver( groupName, driverName string ) ( interface{}, error ){
+	if driverInstance, ok := driverLibrary[libraryKey(groupName, driverName)]; ok {
+		return driverInstance.Driver.New(), nil
+	}
+	return nil, errors.New("Invalid driver: " + groupName + ":" + driverName)
+}
+
+func findDefaultDriver( groupName string ) ( interface{}, error ){
+	lname := strings.ToLower(groupName) + NAME_SEP
+	for key, driverInstance := range driverLibrary {
+		if strings.HasPrefix(key, lname) {
+			if driverInstance.Default || len( driverLibrary ) == 1 {
+				return driverInstance.Driver.New(), nil
+			}
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("No default driver set for %d", groupName))
+}
+
