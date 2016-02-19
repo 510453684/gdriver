@@ -72,6 +72,8 @@ const (
 	IDENT_LONG
 )
 
+const IDENT_UNKNOWN= "unknown"
+
 const DEFAULT_DRIVER = `_*_`
 
 const NAME_SEP = "."
