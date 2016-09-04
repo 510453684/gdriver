@@ -14,11 +14,11 @@ type tDriver1 struct{}
 func (t *tDriver1) New() interface{} { return &mockDriver{} }
 func (t *tDriver1) Identity(id int) string {
 	switch id {
-	case IDENT_NAME:
+	case IdentityName:
 		return "name"
-	case IDENT_SHORT:
+	case IdentityShort:
 		return "short"
-	case IDENT_LONG:
+	case IdentityLong:
 		return "long"
 	}
 	return "unknown"
@@ -51,19 +51,19 @@ func TestRegister(t *testing.T) {
 		t.Error("Init did not get called")
 	}
 
-	if "name" != Help("group", "name", IDENT_NAME) {
+	if "name" != Help("group", "name", IdentityName) {
 		t.Error("Did not get 'name' for identity call")
 	}
 
-	if "short" != Help("group", "name", IDENT_SHORT) {
+	if "short" != Help("group", "name", IdentityShort) {
 		t.Error("Did not get 'short' for identity call")
 	}
 
-	if "long" != Help("group", "name", IDENT_LONG) {
+	if "long" != Help("group", "name", IdentityLong) {
 		t.Error("Did not get 'long' for identity call")
 	}
 
-	_, err = New("group", DEFAULT_DRIVER)
+	_, err = New("group", DefaultSelection)
 	if err != nil {
 		t.Error("Should have had an error but didn't")
 	}
